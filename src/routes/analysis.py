@@ -509,16 +509,16 @@ def analyze_data_endpoint():
         if not session_id:
             return jsonify({"success": False, "error": "session_id obrigatório"}), 400
 
-        # Importa o motor de síntese
-        from services.ai_synthesis_engine import ai_synthesis_engine
+        # Importa o Enhanced Synthesis Engine
+        from services.enhanced_synthesis_engine import enhanced_synthesis_engine
         
-        # Executa síntese com IA
+        # Executa síntese profunda com IA
         import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
             result = loop.run_until_complete(
-                ai_synthesis_engine.analyze_and_synthesize(session_id)
+                enhanced_synthesis_engine.analyze_and_synthesize(session_id)
             )
         finally:
             loop.close()
@@ -526,9 +526,10 @@ def analyze_data_endpoint():
         return jsonify({
             "success": True,
             "session_id": session_id,
-            "message": "Análise e síntese concluídas",
+            "message": "Análise e síntese profunda concluídas",
             "sintese": result.get("synthesis_data", {}),
-            "synthesis_path": result.get("synthesis_path", "")
+            "synthesis_path": result.get("synthesis_path", ""),
+            "ai_searches": result.get("ai_searches_performed", 0)
         })
 
     except Exception as e:

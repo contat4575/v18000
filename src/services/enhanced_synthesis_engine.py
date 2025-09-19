@@ -579,19 +579,64 @@ DADOS PARA ANÁLISE:
 
     def _count_ai_searches(self, synthesis_text: str) -> int:
         """Conta quantas buscas a IA realizou"""
-        # Conta menções de busca no texto
-        search_indicators = [
-            'busca realizada', 'pesquisa online', 'dados encontrados',
-            'informações atualizadas', 'validação online'
-        ]
+        if not synthesis_text:
+            return 0
         
-        count = 0
-        text_lower = synthesis_text.lower()
+        try:
+            # Conta menções de busca no texto
+            search_indicators = [
+                'busca realizada', 'pesquisa online', 'dados encontrados',
+                'informações atualizadas', 'validação online', 'google_search',
+                'resultados da busca', 'pesquisa por', 'busquei por'
+            ]
+            
+            count = 0
+            text_lower = synthesis_text.lower()
+            
+            for indicator in search_indicators:
+                count += text_lower.count(indicator)
+            
+            # Conta também padrões de function calling
+            import re
+            function_calls = re.findall(r'google_search\(["\']([^"\']+)["\']\)', synthesis_text)
+            count += len(function_calls)
+            
+            return count
+        except Exception as e:
+            logger.error(f"❌ Erro ao contar buscas da IA: {e}")
+            return 0
+
+    def get_synthesis_status(self, session_id: str) -> Dict[str, Any]:
+        """Verifica status da síntese para uma sessão"""
+        try:
+            session_dir = Path(f"analyses_data/{session_id}")
+            
+            # Verifica se existe síntese
+            synthesis_files = list(session_dir.glob("sintese_*.json"))
+            report_files = list(session_dir.glob("relatorio_sintese.md"))
+            
+            if synthesis_files or report_files:
+                latest_synthesis = None
+                if synthesis_files:
+                    latest_synthesis = max(synthesis_files, key=lambda f: f.stat().st_mtime)
+                
+                return {
+                    "status": "completed",
+                    "synthesis_available": bool(synthesis_files),
+                    "report_available": bool(report_files),
+                    "latest_synthesis": str(latest_synthesis) if latest_synthesis else None,
+                    "files_found": len(synthesis_files) + len(report_files)
+                }
+            else:
+                return {
+                    "status": "not_found",
+                    "message": "Síntese ainda não foi executada"
+                }
+                
+        except Exception as e:
+            logger.error(f"❌ Erro ao verificar status da síntese: {e}")
+            return {"status": "error", "error": str(e)}
         
-        for indicator in search_indicators:
-            count += text_lower.count(indicator)
-        
-        return count
 
     async def execute_behavioral_synthesis(self, session_id: str) -> Dict[str, Any]:
         """Executa síntese comportamental específica"""

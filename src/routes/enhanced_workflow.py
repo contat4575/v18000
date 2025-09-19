@@ -276,9 +276,28 @@ def start_step2_synthesis():
             "timestamp": datetime.now().isoformat()
         }, categoria="workflow", session_id=session_id)
 
-        # Executa síntese em thread separada
-        def execute_synthesis_thread():
-            try:
+        # EXECUTA SÍNTESE PROFUNDA COM ENHANCED SYNTHESIS ENGINE
+        logger.info(f"🤖 Chamando Enhanced Synthesis Engine para análise profunda...")
+        
+        # Importa e executa o Enhanced Synthesis Engine
+        from services.enhanced_synthesis_engine import enhanced_synthesis_engine
+        
+        # Executa síntese de forma assíncrona
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            synthesis_result = loop.run_until_complete(
+                enhanced_synthesis_engine.analyze_and_synthesize(session_id)
+            )
+        finally:
+            loop.close()
+        
+        # Verifica se a síntese foi bem-sucedida
+        if not synthesis_result.get("success"):
+            raise Exception(f"Falha na síntese: {synthesis_result.get('error', 'Erro desconhecido')}")
+        
+        logger.info(f"✅ Síntese profunda concluída: {synthesis_result.get('synthesis_path')}")
                 # Carrega serviços de forma lazy
                 services = get_services()
                 if not services:
@@ -364,7 +383,10 @@ def start_step3_generation():
         # Salva início da etapa 3
         salvar_etapa("etapa3_iniciada", {
             "session_id": session_id,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "synthesis_result": synthesis_result,
+            "synthesis_path": synthesis_result.get("synthesis_path"),
+            "ai_searches_performed": synthesis_result.get("ai_searches_performed", 0)
         }, categoria="workflow", session_id=session_id)
 
         # Executa geração em thread separada
@@ -1136,9 +1158,15 @@ def _gerar_consolidacao_final_etapa1(session_id, search_results, viral_analysis,
             "viral_files_incluidos": len(consolidacao["viral_results_files"]),
             "trechos_incluidos": len(consolidacao["trechos_extraidos"]),
             "res_busca_incluidos": len(consolidacao["res_busca_files"]),
-            "consolidado_incluidos": len(consolidacao["consolidado_files"]),
+            "message": "Etapa 2 concluída: Síntese profunda realizada com IA",
             "etapa1_incluidos": len(consolidacao["etapa1_concluida_files"]),
-            "relatorio_coleta_incluido": bool(consolidacao["relatorio_coleta"])
+            "next_step": "/api/workflow/step3/start",
+            "synthesis_data": {
+                "synthesis_path": synthesis_result.get("synthesis_path"),
+                "report_path": synthesis_result.get("report_path"),
+                "ai_searches": synthesis_result.get("ai_searches_performed", 0),
+                "context_analyzed": synthesis_result.get("context_size", 0)
+            }
         })
 
         # SALVA CONSOLIDAÇÃO COMPLETA
